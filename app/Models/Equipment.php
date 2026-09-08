@@ -4,11 +4,15 @@ namespace App\Models;
 
 use App\Enums\EquipmentStatus;
 use Database\Factories\EquipmentFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Equipment extends Model
+/**
+ * @property EquipmentStatus $status
+ * @property-read Collection<int, MaintenanceRequest> $maintenanceRequests
+ */ class Equipment extends Model
 {
     /** @use HasFactory<EquipmentFactory> */
     use HasFactory;
@@ -27,6 +31,9 @@ class Equipment extends Model
         ];
     }
 
+    /**
+     * @return HasMany<MaintenanceRequest, $this>
+     */
     public function maintenanceRequests(): HasMany
     {
         return $this->hasMany(MaintenanceRequest::class);
