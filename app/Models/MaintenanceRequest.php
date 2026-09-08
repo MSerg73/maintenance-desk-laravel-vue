@@ -12,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property RequestPriority $priority
  * @property MaintenanceRequestStatus $status
+ * @property-read Equipment $equipment
+ * @property-read User $creator
+ * @property-read User|null $assignee
  */ class MaintenanceRequest extends Model
 {
     /** @use HasFactory<MaintenanceRequestFactory> */

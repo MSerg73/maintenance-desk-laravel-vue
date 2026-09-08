@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Wrench } from '@lucide/vue';
+import {
+    BookOpen,
+    ClipboardList,
+    FolderGit2,
+    LayoutGrid,
+    Wrench,
+} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -16,6 +22,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as equipmentIndex } from '@/routes/equipment';
+import MaintenanceRequestController from '@/actions/App/Http/Controllers/MaintenanceRequestController';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -28,6 +35,11 @@ const mainNavItems: NavItem[] = [
         title: 'Equipment',
         href: equipmentIndex(),
         icon: Wrench,
+    },
+    {
+        title: 'Maintenance requests',
+        href: MaintenanceRequestController.index(),
+        icon: ClipboardList,
     },
 ];
 

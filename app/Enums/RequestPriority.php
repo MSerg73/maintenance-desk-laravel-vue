@@ -8,4 +8,9 @@ enum RequestPriority: string
     case Normal = 'normal';
     case High = 'high';
     case Critical = 'critical';
+
+    public function label(): string
+    {
+        return ucwords(str_replace('_', ' ', $this->value));
+    }
 }
