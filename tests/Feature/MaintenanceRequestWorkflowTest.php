@@ -2,6 +2,7 @@
 
 use App\Enums\MaintenanceRequestStatus;
 use App\Enums\RequestPriority;
+use App\Enums\UserRole;
 use App\Models\Equipment;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -17,9 +18,15 @@ it('redirects guests away from the maintenance request register', function () {
 });
 
 it('shows maintenance requests with equipment creator and assignee', function () {
-    $viewer = User::factory()->create();
-    $creator = User::factory()->create(['name' => 'Request Creator']);
-    $assignee = User::factory()->create(['name' => 'Assigned Engineer']);
+    $viewer = User::factory()->create(['role' => UserRole::Operator]);
+    $creator = User::factory()->create([
+        'name' => 'Request Creator',
+        'role' => UserRole::Operator,
+    ]);
+    $assignee = User::factory()->create([
+        'name' => 'Assigned Engineer',
+        'role' => UserRole::Engineer,
+    ]);
     $equipment = Equipment::factory()->create([
         'name' => 'Packaging machine',
         'code' => 'PK-100',
@@ -47,12 +54,13 @@ it('shows maintenance requests with equipment creator and assignee', function ()
             ->where('requests.data.0.assignee.name', 'Assigned Engineer')
             ->where('requests.data.0.status', 'new')
             ->where('requests.data.0.next_status.value', 'in_progress')
+            ->where('permissions.can_update', false)
+            ->where('permissions.can_transition', false)
         );
 });
 
-it('creates a request in new status and records the creator', function () {
-    $creator = User::factory()->create();
-    $assignee = User::factory()->create();
+it('allows an operator to create an unassigned request in new status', function () {
+    $creator = User::factory()->create(['role' => UserRole::Operator]);
     $equipment = Equipment::factory()->create();
     $priority = RequestPriority::cases()[0];
 
@@ -62,7 +70,6 @@ it('creates a request in new status and records the creator', function () {
             'title' => 'Unstable temperature sensor signal',
             'description' => 'Temperature sensor signal is unstable',
             'priority' => $priority->value,
-            'assigned_to' => $assignee->id,
         ])
         ->assertRedirect(route('maintenance-requests.index'))
         ->assertSessionHas('success');
@@ -74,18 +81,18 @@ it('creates a request in new status and records the creator', function () {
         'priority' => $priority->value,
         'status' => 'new',
         'created_by' => $creator->id,
-        'assigned_to' => $assignee->id,
+        'assigned_to' => null,
     ]);
 });
 
-it('updates request details without changing workflow status or creator', function () {
-    $actor = User::factory()->create();
-    $creator = User::factory()->create();
-    $newAssignee = User::factory()->create();
+it('allows an engineer to update request details without changing workflow status or creator', function () {
+    $actor = User::factory()->create(['role' => UserRole::Engineer]);
+    $creator = User::factory()->create(['role' => UserRole::Operator]);
     $equipment = Equipment::factory()->create();
     $request = MaintenanceRequest::factory()->create([
         'created_by' => $creator->id,
         'status' => MaintenanceRequestStatus::from('new'),
+        'assigned_to' => null,
     ]);
     $priority = RequestPriority::cases()[0];
 
@@ -95,7 +102,6 @@ it('updates request details without changing workflow status or creator', functi
             'title' => 'Updated request title',
             'description' => 'Updated diagnostic description',
             'priority' => $priority->value,
-            'assigned_to' => $newAssignee->id,
             'status' => 'closed',
             'created_by' => $actor->id,
         ])
@@ -107,14 +113,14 @@ it('updates request details without changing workflow status or creator', functi
         'title' => 'Updated request title',
         'description' => 'Updated diagnostic description',
         'priority' => $priority->value,
-        'assigned_to' => $newAssignee->id,
+        'assigned_to' => null,
         'status' => 'new',
         'created_by' => $creator->id,
     ]);
 });
 
-it('allows the next valid workflow transition', function () {
-    $actor = User::factory()->create();
+it('allows an engineer to perform the next valid workflow transition', function () {
+    $actor = User::factory()->create(['role' => UserRole::Engineer]);
     $request = MaintenanceRequest::factory()->create([
         'status' => MaintenanceRequestStatus::from('new'),
     ]);
@@ -131,8 +137,8 @@ it('allows the next valid workflow transition', function () {
     ]);
 });
 
-it('rejects skipping a workflow state', function () {
-    $actor = User::factory()->create();
+it('rejects an engineer skipping a workflow state', function () {
+    $actor = User::factory()->create(['role' => UserRole::Engineer]);
     $request = MaintenanceRequest::factory()->create([
         'status' => MaintenanceRequestStatus::from('new'),
     ]);
@@ -149,8 +155,8 @@ it('rejects skipping a workflow state', function () {
     ]);
 });
 
-it('supports the complete forward workflow to closed', function () {
-    $actor = User::factory()->create();
+it('supports the complete engineer-driven forward workflow to closed', function () {
+    $actor = User::factory()->create(['role' => UserRole::Engineer]);
     $request = MaintenanceRequest::factory()->create([
         'status' => MaintenanceRequestStatus::from('new'),
     ]);
@@ -168,8 +174,8 @@ it('supports the complete forward workflow to closed', function () {
     expect($request->status)->toBe(MaintenanceRequestStatus::from('closed'));
 });
 
-it('rejects any transition after a request is closed', function () {
-    $actor = User::factory()->create();
+it('rejects any engineer transition after a request is closed', function () {
+    $actor = User::factory()->create(['role' => UserRole::Engineer]);
     $request = MaintenanceRequest::factory()->create([
         'status' => MaintenanceRequestStatus::from('closed'),
     ]);

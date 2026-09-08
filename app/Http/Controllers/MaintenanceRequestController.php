@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +21,8 @@ class MaintenanceRequestController extends Controller
 {
     public function index(Request $request): Response
     {
+        Gate::authorize('viewAny', MaintenanceRequest::class);
+
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string'],
@@ -118,11 +121,17 @@ class MaintenanceRequestController extends Controller
             ],
             'statuses' => $this->statusOptions(),
             'priorities' => $this->priorityOptions(),
+            'permissions' => [
+                'can_update' => Gate::allows('manage', MaintenanceRequest::class),
+                'can_transition' => Gate::allows('manage', MaintenanceRequest::class),
+            ],
         ]);
     }
 
     public function create(): Response
     {
+        Gate::authorize('create', MaintenanceRequest::class);
+
         return Inertia::render('maintenance-requests/Create', [
             ...$this->formOptions(),
         ]);
@@ -130,11 +139,19 @@ class MaintenanceRequestController extends Controller
 
     public function store(StoreMaintenanceRequestRequest $request): RedirectResponse
     {
+        Gate::authorize('create', MaintenanceRequest::class);
+
         $user = $request->user();
         abort_if($user === null, 403);
 
+        $data = $request->validated();
+
+        if (($data['assigned_to'] ?? null) !== null) {
+            Gate::authorize('assign', MaintenanceRequest::class);
+        }
+
         MaintenanceRequest::query()->create([
-            ...$request->validated(),
+            ...$data,
             'status' => MaintenanceRequestStatus::from('new')->value,
             'created_by' => (int) $user->getKey(),
         ]);
@@ -145,6 +162,8 @@ class MaintenanceRequestController extends Controller
 
     public function edit(MaintenanceRequest $maintenanceRequest): Response
     {
+        Gate::authorize('update', $maintenanceRequest);
+
         return Inertia::render('maintenance-requests/Edit', [
             'maintenanceRequest' => [
                 'id' => $maintenanceRequest->id,
@@ -164,7 +183,23 @@ class MaintenanceRequestController extends Controller
         UpdateMaintenanceRequestRequest $request,
         MaintenanceRequest $maintenanceRequest,
     ): RedirectResponse {
-        $maintenanceRequest->update($request->validated());
+        Gate::authorize('update', $maintenanceRequest);
+
+        $data = $request->validated();
+
+        if (array_key_exists('assigned_to', $data)) {
+            $requestedAssignee = $data['assigned_to'] === null
+                ? null
+                : (int) $data['assigned_to'];
+
+            if ($requestedAssignee !== $maintenanceRequest->assigned_to) {
+                Gate::authorize('assign', MaintenanceRequest::class);
+            }
+
+            $data['assigned_to'] = $requestedAssignee;
+        }
+
+        $maintenanceRequest->update($data);
 
         return to_route('maintenance-requests.index')
             ->with('success', 'Maintenance request updated.');
@@ -174,6 +209,8 @@ class MaintenanceRequestController extends Controller
         UpdateMaintenanceRequestStatusRequest $request,
         MaintenanceRequest $maintenanceRequest,
     ): RedirectResponse {
+        Gate::authorize('transition', $maintenanceRequest);
+
         $target = MaintenanceRequestStatus::from((string) $request->validated('status'));
 
         if (! $maintenanceRequest->status->canTransitionTo($target)) {
@@ -201,6 +238,8 @@ class MaintenanceRequestController extends Controller
      */
     private function formOptions(): array
     {
+        $canAssign = Gate::allows('assign', MaintenanceRequest::class);
+
         return [
             'equipmentOptions' => Equipment::query()
                 ->orderBy('name')
@@ -213,17 +252,20 @@ class MaintenanceRequestController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'userOptions' => User::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user): array => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ])
-                ->values()
-                ->all(),
+            'userOptions' => $canAssign
+                ? User::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email'])
+                    ->map(fn (User $user): array => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
             'priorities' => $this->priorityOptions(),
+            'canAssign' => $canAssign,
         ];
     }
 

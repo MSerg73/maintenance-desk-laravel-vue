@@ -9,6 +9,7 @@ use App\Models\Equipment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,6 +17,8 @@ class EquipmentController extends Controller
 {
     public function index(Request $request): Response
     {
+        Gate::authorize('viewAny', Equipment::class);
+
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string'],
@@ -77,11 +80,16 @@ class EquipmentController extends Controller
                 'status' => $status,
             ],
             'statuses' => $this->statuses(),
+            'permissions' => [
+                'can_manage' => Gate::allows('create', Equipment::class),
+            ],
         ]);
     }
 
     public function create(): Response
     {
+        Gate::authorize('create', Equipment::class);
+
         return Inertia::render('equipment/Create', [
             'statuses' => $this->statuses(),
         ]);
@@ -89,6 +97,8 @@ class EquipmentController extends Controller
 
     public function store(StoreEquipmentRequest $request): RedirectResponse
     {
+        Gate::authorize('create', Equipment::class);
+
         Equipment::query()->create($request->validated());
 
         return to_route('equipment.index')
@@ -97,6 +107,8 @@ class EquipmentController extends Controller
 
     public function edit(Equipment $equipment): Response
     {
+        Gate::authorize('update', $equipment);
+
         return Inertia::render('equipment/Edit', [
             'equipment' => [
                 'id' => $equipment->id,
@@ -111,6 +123,8 @@ class EquipmentController extends Controller
 
     public function update(UpdateEquipmentRequest $request, Equipment $equipment): RedirectResponse
     {
+        Gate::authorize('update', $equipment);
+
         $equipment->update($request->validated());
 
         return to_route('equipment.index')
@@ -119,6 +133,8 @@ class EquipmentController extends Controller
 
     public function destroy(Equipment $equipment): RedirectResponse
     {
+        Gate::authorize('delete', $equipment);
+
         if ($equipment->maintenanceRequests()->exists()) {
             return back()->with('error', 'Equipment with maintenance requests cannot be deleted.');
         }

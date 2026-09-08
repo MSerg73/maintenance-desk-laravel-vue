@@ -13,6 +13,7 @@ defineProps<{
     equipmentOptions: EquipmentOption[];
     userOptions: UserOption[];
     priorities: SelectOption[];
+    canAssign: boolean;
 }>();
 
 defineOptions({
@@ -53,6 +54,7 @@ defineOptions({
                 :equipment-options="equipmentOptions"
                 :user-options="userOptions"
                 :priorities="priorities"
+                :can-assign="canAssign"
                 :errors="errors"
             />
 

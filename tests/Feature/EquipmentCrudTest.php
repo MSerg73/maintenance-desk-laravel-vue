@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EquipmentStatus;
+use App\Enums\UserRole;
 use App\Models\Equipment;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
@@ -15,8 +16,8 @@ it('redirects guests away from the equipment register', function () {
         ->assertRedirect(route('login'));
 });
 
-it('shows the equipment register to an authenticated user', function () {
-    $user = User::factory()->create();
+it('shows the equipment register to an authenticated operator', function () {
+    $user = User::factory()->create(['role' => UserRole::Operator]);
     Equipment::factory()->create([
         'name' => 'Mixer MX-01',
         'code' => 'MX-01',
@@ -32,11 +33,12 @@ it('shows the equipment register to an authenticated user', function () {
             ->where('equipment.data.0.name', 'Mixer MX-01')
             ->where('equipment.data.0.status', 'maintenance')
             ->where('equipment.data.0.status_label', 'Maintenance')
+            ->where('permissions.can_manage', false)
         );
 });
 
 it('filters equipment by search and status', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['role' => UserRole::Operator]);
 
     Equipment::factory()->create([
         'name' => 'Packaging machine',
@@ -66,8 +68,8 @@ it('filters equipment by search and status', function () {
         );
 });
 
-it('creates equipment with validated data', function () {
-    $user = User::factory()->create();
+it('allows an admin to create equipment with validated data', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
 
     $this->actingAs($user)
         ->post(route('equipment.store'), [
@@ -87,8 +89,8 @@ it('creates equipment with validated data', function () {
     ]);
 });
 
-it('rejects duplicate equipment codes and invalid status values', function () {
-    $user = User::factory()->create();
+it('rejects duplicate equipment codes and invalid status values for an admin', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
     Equipment::factory()->create(['code' => 'EQ-001']);
 
     $this->actingAs($user)
@@ -103,8 +105,8 @@ it('rejects duplicate equipment codes and invalid status values', function () {
         ->assertSessionHasErrors(['code', 'status']);
 });
 
-it('updates equipment and keeps its code unique against other records', function () {
-    $user = User::factory()->create();
+it('allows an admin to update equipment while keeping its code unique', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
     $equipment = Equipment::factory()->create(['code' => 'EQ-010']);
     Equipment::factory()->create(['code' => 'EQ-020']);
 
@@ -135,8 +137,8 @@ it('updates equipment and keeps its code unique against other records', function
         ->assertSessionHasErrors('code');
 });
 
-it('deletes equipment that has no maintenance requests', function () {
-    $user = User::factory()->create();
+it('allows an admin to delete equipment that has no maintenance requests', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
     $equipment = Equipment::factory()->create();
 
     $this->actingAs($user)
@@ -147,8 +149,8 @@ it('deletes equipment that has no maintenance requests', function () {
     $this->assertDatabaseMissing('equipment', ['id' => $equipment->id]);
 });
 
-it('protects equipment referenced by maintenance requests from deletion', function () {
-    $user = User::factory()->create();
+it('protects referenced equipment from deletion even for an admin', function () {
+    $user = User::factory()->create(['role' => UserRole::Admin]);
     $equipment = Equipment::factory()->create();
 
     MaintenanceRequest::factory()->create([

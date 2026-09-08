@@ -17,6 +17,10 @@ const props = defineProps<{
     filters: MaintenanceRequestFilters;
     statuses: SelectOption[];
     priorities: SelectOption[];
+    permissions: {
+        can_update: boolean;
+        can_transition: boolean;
+    };
 }>();
 
 defineOptions({
@@ -273,6 +277,7 @@ const statusClass = (value: string): string => {
                             <td class="px-4 py-3">
                                 <div class="flex min-w-36 justify-end gap-1">
                                     <Button
+                                        v-if="permissions.can_update"
                                         as-child
                                         variant="ghost"
                                         size="icon"
@@ -290,7 +295,10 @@ const statusClass = (value: string): string => {
                                     </Button>
 
                                     <Button
-                                        v-if="item.next_status"
+                                        v-if="
+                                            permissions.can_transition &&
+                                            item.next_status
+                                        "
                                         size="sm"
                                         variant="secondary"
                                         @click="

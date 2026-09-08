@@ -16,6 +16,9 @@ const props = defineProps<{
     equipment: EquipmentPaginator;
     filters: EquipmentFilters;
     statuses: EquipmentStatusOption[];
+    permissions: {
+        can_manage: boolean;
+    };
 }>();
 
 defineOptions({
@@ -94,7 +97,7 @@ const statusClass = (value: string): string => {
                 </p>
             </div>
 
-            <Button as-child>
+            <Button v-if="permissions.can_manage" as-child>
                 <Link :href="create()">
                     <CirclePlus class="size-4" />
                     Add equipment
@@ -197,6 +200,7 @@ const statusClass = (value: string): string => {
                             <td class="px-4 py-3">
                                 <div class="flex justify-end gap-1">
                                     <Button
+                                        v-if="permissions.can_manage"
                                         as-child
                                         variant="ghost"
                                         size="icon"
@@ -208,6 +212,7 @@ const statusClass = (value: string): string => {
                                     </Button>
 
                                     <Button
+                                        v-if="permissions.can_manage"
                                         variant="ghost"
                                         size="icon"
                                         title="Delete"

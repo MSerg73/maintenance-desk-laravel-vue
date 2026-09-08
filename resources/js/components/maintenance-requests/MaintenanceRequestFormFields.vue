@@ -15,6 +15,7 @@ withDefaults(
         equipmentOptions: EquipmentOption[];
         userOptions: UserOption[];
         priorities: SelectOption[];
+        canAssign?: boolean;
         errors?: Record<string, string>;
     }>(),
     {
@@ -25,6 +26,7 @@ withDefaults(
             priority: '',
             assigned_to: null,
         }),
+        canAssign: false,
         errors: () => ({}),
     },
 );
@@ -102,7 +104,7 @@ withDefaults(
             <InputError :message="errors.priority" />
         </div>
 
-        <div class="grid gap-2">
+        <div v-if="canAssign" class="grid gap-2">
             <Label for="assigned_to">Assignee</Label>
             <select
                 id="assigned_to"
